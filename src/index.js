@@ -1,5 +1,15 @@
 // Require the necessary discord.js classes
-import { Client, Events, GatewayIntentBits, EmbedBuilder, REST, Routes } from 'discord.js';
+import { 
+	Client, 
+	Events, 
+	GatewayIntentBits, 
+	EmbedBuilder, 
+	REST, 
+	Routes,
+	ActionRowBuilder,
+	ButtonBuilder,
+	ButtonStyle
+ } from 'discord.js';
 import * as dotenv from 'dotenv'
 import searchCommand from './commands/search.js';
 import pingCommand from './commands/ping.js';
@@ -37,7 +47,7 @@ const searchQuery = {
     variables:  {
         search: 'naruto',
             page: 1,
-            perPage: 5
+            perPage: 3
         }
 };
 const animeQuery = {
@@ -84,7 +94,6 @@ client.once(Events.ClientReady, c => {
 // interaction create event triiger function
 
 client.on(Events.InteractionCreate, async inter => {
-	if (!inter.isChatInputCommand()) { return; }
 
 	// handles /search commands
 	if (inter.commandName === 'search') {
@@ -102,36 +111,62 @@ client.on(Events.InteractionCreate, async inter => {
 				variables: searchQuery.variables
 			})
 		};
+		//new action row 
+		const listRow = new ActionRowBuilder()
 
 		// new embeds builder
 		const listEmbed = new EmbedBuilder()
 						.setTitle('`SEARCH RESULTS`')
-						.setDescription('- list of top 5 anime(s) matching your query')
-						.setColor(0x7545b0)
-						.setFooter({ text: '- results were fetched from anilist.co using their API' });
+						.setDescription('- select the anime you to get details about. fetched from `anilist.co API`')
+						.setColor('57F287');
 		try {
 			const response = await (await fetch(ANILIST_URL, options)).json();
 			for (const title of response.data.Page.media) {
-				listEmbed.addFields({ name: `\`🔹 ${ title.title.romaji } \``, value: `      ɻ -details at ${ title.siteUrl }`,inline: false });
+				
+				// adds ActionRows to the listRows array
+				listRow.addComponents(
+					new ButtonBuilder()
+						.setCustomId(`ANIME_${ title.id }_${inter.user.id}`)
+						.setLabel(`${ title.title.romaji }`)
+						.setStyle(ButtonStyle.Primary)
+				);
 			}
-			await inter.editReply({ embeds: [listEmbed] });
+			await inter.editReply({ embeds: [ listEmbed ], components: [ listRow ] });
 			console.log(`[LOG]\t /search was used to search => ${ searchStr }`);
-			return;
+			
 		}
-		catch {
+		catch (err) {
 			await inter.editReply('Unable to process your request!!!');
-			return;
+			console.error(err);
 		}
 
 	}
+	// respones to button interactions
 
+	const filter = (inter) => inter.isButton();
+	const collector = inter.channel.createMessageComponentCollector({ filter, time: 15_000 });
+
+	collector.on('collect', async i => {
+		const customId = i.customId.split('_');
+		const searchType = customId[0];
+		const animeId = customId[1];
+		const userId = customId[2];
+		if (i.user.id === userId){
+			await i.update({content: `Type: ${searchType}\tAnimeId: ${animeId}\tUserId: ${userId}`, embeds: [], components: []});
+		}
+			
+	} );
+	collector.on('end', collected => console.log(`Collected ${collected.size} items`));
+
+	// handles /ping slash command
 	if (inter.commandName === 'ping') {
 		await inter.deferReply();
 		await inter.editReply("Pong!");
 		console.log(`[LOG]\t /ping was used by => ${ inter.user.tag }`);
-		return;
 	}
 });
+
+
 
 // async main function to reg slash commands and  logs into bot
 async function main(){
@@ -156,12 +191,3 @@ async function main(){
 }
 
 main();
-
-
-
-
-
-
-async function searchAnime(){
-    
-}

@@ -15,3 +15,9 @@ console.log('[WAIT] Deleting all the commands within given GUILD_ID')
 rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: [] })
 	.then(() => console.log('[DONE] Successfully deleted all guild commands.'))
 	.catch(() => console.log('[ERROR] Failed to delete all commands'));
+
+	console.log('[WAIT] Deleting all global commands')
+
+rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: [] })
+.then(() => console.log('[DONE] Successfully deleted all global commands.'))
+.catch(() => console.log('[ERROR] Failed to delete all global commands'));

@@ -9,5 +9,4 @@ const searchCommand = new SlashCommandBuilder()
 			.setDescription('anime name that you want to search')
 			.setRequired(true))
 
-	
 export default searchCommand.toJSON();
