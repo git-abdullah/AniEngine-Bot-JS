@@ -27,40 +27,40 @@ const ANILIST_URL = 'https://graphql.anilist.co';
 // qraphql queries to fetch data from api
 const searchQuery = {
     query: `query ($id: Int, $page: Int, $perPage: Int, $search: String) {
-        Page (page: $page, perPage: $perPage) {
-            pageInfo {
-                total
-                currentPage
-                lastPage
-                hasNextPage
-                perPage
-            }
-            media (id: $id, search: $search, type: ANIME) {
-                id
-                title {
-                    romaji
-                }
-                siteUrl
-            }
-        }
-    }`,
+		Page (page: $page, perPage: $perPage) {
+			pageInfo {
+				total
+				currentPage
+				lastPage
+				hasNextPage
+				perPage
+			}
+			media (id: $id, search: $search, type: ANIME) {
+				id
+				title {
+					romaji
+				}
+				siteUrl
+			}
+		}
+	}`,
     variables:  {
         search: 'naruto',
-            page: 1,
-            perPage: 3
+        page: 1,
+        perPage: 3,
         }
 };
 const animeQuery = {
     query: `query ($id: Int) {
-        Media(id: $id, type: ANIME) {
+        Media(id: $id) {
             id
             title {
-                english
+                romaji
             }
             status
             genres
             coverImage {
-                medium
+                large
             }
             episodes
             description
@@ -73,7 +73,9 @@ const animeQuery = {
         siteUrl
         }
     }`,
-    variables: { id : 3480 }
+    variables: { 
+		id : 3480,
+	 }
 };
 
 // defining rest for reg slash commands
@@ -99,7 +101,8 @@ client.on(Events.InteractionCreate, async inter => {
 	if (inter.commandName === 'search') {
 		await inter.deferReply();
 		const searchStr = inter.options.getString('search_query');
-		const searchQ = searchQuery.variables.search = searchStr;
+		const searchType = inter.options.getString('search_type');
+		searchQuery.variables.search = searchStr;
 		const options = {
 			method: 'POST',
 			headers: {
@@ -112,12 +115,12 @@ client.on(Events.InteractionCreate, async inter => {
 			})
 		};
 		//new action row 
-		const listRow = new ActionRowBuilder()
+		const listRow = new ActionRowBuilder();
 
 		// new embeds builder
 		const listEmbed = new EmbedBuilder()
 						.setTitle('`SEARCH RESULTS`')
-						.setDescription('- select the anime you to get details about. fetched from `anilist.co API`')
+						.setDescription('- choose one. fetched from `anilist.co API`')
 						.setColor('57F287');
 		try {
 			const response = await (await fetch(ANILIST_URL, options)).json();
@@ -126,7 +129,7 @@ client.on(Events.InteractionCreate, async inter => {
 				// adds ActionRows to the listRows array
 				listRow.addComponents(
 					new ButtonBuilder()
-						.setCustomId(`ANIME_${ title.id }_${inter.user.id}`)
+						.setCustomId(`${searchType}_${ title.id }_${inter.user.id}`)
 						.setLabel(`${ title.title.romaji }`)
 						.setStyle(ButtonStyle.Primary)
 				);
@@ -152,7 +155,53 @@ client.on(Events.InteractionCreate, async inter => {
 		const animeId = customId[1];
 		const userId = customId[2];
 		if (i.user.id === userId){
-			await i.update({content: `Type: ${searchType}\tAnimeId: ${animeId}\tUserId: ${userId}`, embeds: [], components: []});
+			await i.deferUpdate()
+			animeQuery.variables.id = animeId;
+				const options = {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Accept': 'application/json',
+					},
+					body: JSON.stringify({
+					query: animeQuery.query,
+					variables: animeQuery.variables
+				})
+				};
+				try {
+					const response = await (await fetch(ANILIST_URL, options)).json();
+					const title = response.data.Media.title.romaji;
+					const showStatus = response.data.Media.status;
+					const genres = response.data.Media.genres.join(', ');
+					const coverImg = response.data.Media.coverImage.large;
+					const episodes = response.data.Media.episodes;
+					const description = response.data.Media.description.replaceAll('<br>', '');
+					const season = response.data.Media.season;
+					const siteUrl = response.data.Media.siteUrl;
+					const detailEmbed = new EmbedBuilder()
+										.setTitle(`${title}`)
+										.setURL(siteUrl)
+										.setColor('57F287')
+										.addFields(
+											{ name: ' 🔃 Genres: ', value: `${genres}`, inline: false },
+											{ name: ' ⏰ Status: ', value: `${showStatus}`, inline: true },
+											{ name: ' 🎬 Episodes: ', value: `${episodes}`, inline: true },
+											{ name: ' 🌫 Season: ', value: `${season}`, inline: true },
+											{ name: ' 🔃 Genres: ', value: `${genres}`, inline: false },
+										)
+										.setDescription(description)
+										.setImage(coverImg)
+										.setFooter({ text: 'anilist.co', iconURL: 'https://i.imgur.com/3vgy4jF.png' });;
+					await i.editReply({embeds: [detailEmbed], components: []});
+					return;
+
+										
+				}
+				catch (err) {
+					i.update({content: 'Unable to fetch data from API', embeds: [], components: [] });
+					console.log(err)
+				}
+			
 		}
 			
 	} );
@@ -178,7 +227,7 @@ async function main(){
 	// tries to resgister slash commands and logs into bot
 	try {
 		console.log(`[WAIT]\t Registering / slash commands => ${commands.length}`);
-		await rest.put(Routes.applicationGuildCommands(clientId, guildId), {body: commands});
+		await rest.put(Routes.applicationCommands(clientId, guildId), {body: commands});
 		console.log(`[DONE]\t Registered / slash commands => ${commands.length}`);
 
 		// Log in to Discord with your client's token
