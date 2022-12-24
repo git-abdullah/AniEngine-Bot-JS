@@ -94,7 +94,6 @@ client.once(Events.ClientReady, c => {
 });
 
 // interaction create event triiger function
-
 client.on(Events.InteractionCreate, async inter => {
 
 	// handles /search commands
@@ -123,6 +122,7 @@ client.on(Events.InteractionCreate, async inter => {
 						.setDescription('- choose one. fetched from `anilist.co API`')
 						.setColor('57F287');
 		try {
+			console.log(`[LOG]\t /search was used to search => ${ searchStr }`);
 			const response = await (await fetch(ANILIST_URL, options)).json();
 			for (const title of response.data.Page.media) {
 				
@@ -135,23 +135,22 @@ client.on(Events.InteractionCreate, async inter => {
 				);
 			}
 			await inter.editReply({ embeds: [ listEmbed ], components: [ listRow ] });
-			console.log(`[LOG]\t /search was used to search => ${ searchStr }`);
 			
 		}
 		catch (err) {
-			await inter.editReply('Unable to process your request!!!');
+			await inter.editReply({ content: 'Unable to process your request!!!', ephemeral: true, embeds: [], components: [] });
+			console.log('[ERROR]\t Failed to search given term... ');
 			console.error(err);
 		}
-
 	}
-	// respones to button interactions
 
+	// respones to button interactions
 	const filter = (inter) => inter.isButton();
 	const collector = inter.channel.createMessageComponentCollector({ filter, time: 15_000 });
 
 	collector.on('collect', async i => {
 		const customId = i.customId.split('_');
-		const searchType = customId[0];
+		// const searchType = customId[0];
 		const animeId = customId[1];
 		const userId = customId[2];
 		if (i.user.id === userId){
@@ -183,7 +182,6 @@ client.on(Events.InteractionCreate, async inter => {
 										.setURL(siteUrl)
 										.setColor('57F287')
 										.addFields(
-											{ name: ' 🔃 Genres: ', value: `${genres}`, inline: false },
 											{ name: ' ⏰ Status: ', value: `${showStatus}`, inline: true },
 											{ name: ' 🎬 Episodes: ', value: `${episodes}`, inline: true },
 											{ name: ' 🌫 Season: ', value: `${season}`, inline: true },
@@ -191,21 +189,21 @@ client.on(Events.InteractionCreate, async inter => {
 										)
 										.setDescription(description)
 										.setImage(coverImg)
-										.setFooter({ text: 'anilist.co', iconURL: 'https://i.imgur.com/3vgy4jF.png' });;
+										.setFooter({ text: '- fetched from Anilist\'s Public API' });
 					await i.editReply({embeds: [detailEmbed], components: []});
 					return;
-
-										
 				}
 				catch (err) {
-					i.update({content: 'Unable to fetch data from API', embeds: [], components: [] });
-					console.log(err)
+					i.editReply({content: 'Unable to fetch data from API', embeds: [], components: [], ephemeral: true });
+					console.log(`[ERROR]\t ${err}`);
 				}
-			
 		}
-			
+		else if (!(i.user.id === userId)) {
+			await i.deferUpdate();
+			await inter.editReply({ content: 'It\'s not yours to choose, shu shu!', ephemeral: true, embeds: [], components: [] });
+		}
 	} );
-	collector.on('end', collected => console.log(`Collected ${collected.size} items`));
+	collector.on('end', collected => console.log(`[LOG] Collecter collected items => ${collected.size}`));
 
 	// handles /ping slash command
 	if (inter.commandName === 'ping') {
@@ -214,7 +212,6 @@ client.on(Events.InteractionCreate, async inter => {
 		console.log(`[LOG]\t /ping was used by => ${ inter.user.tag }`);
 	}
 });
-
 
 
 // async main function to reg slash commands and  logs into bot

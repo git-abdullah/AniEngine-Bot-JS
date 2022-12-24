@@ -11,8 +11,6 @@ const searchCommand = new SlashCommandBuilder()
 			.addChoices(
 				{ name: 'Anime', value: 'ANIME' },
 				{ name: 'Manga', value: 'MANGA' },
-				{ name: 'Character', value: 'CHAR' }
-		
 			))
 	.addStringOption(option =>
 		option
